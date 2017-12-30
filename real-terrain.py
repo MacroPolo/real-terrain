@@ -10,99 +10,104 @@ import subprocess
 
 from PIL import Image
 
-GDAL_INFO_BIN = 'bin/gdalinfo.exe'
-GDAL_TRANSLATE_BIN = 'bin/gdal_translate.exe'
+# We are dealing with large files here, so increase the DecompressionBombWarning threshold
+Image.MAX_IMAGE_PIXELS = 1500000000
+
+GDAL_INFO = 'bin/gdalinfo.exe'
+GDAL_TRANSLATE = 'bin/gdal_translate.exe'
 INPUT_DIR = 'input/'
 OUTPUT_DIR = 'output/'
 
 class HeightMap(object):
-    def __init__(self, input_data, resolution):
-        self.resolution = resolution
-        self.input_data = INPUT_DIR + input_data
-        self.raster_info = None
+    def __init__(self, dem, scale=None, tile=None):
+        self.dem = INPUT_DIR + dem
+        self.res_scale = scale
+        self.res_tile = tile
+
         self.min_elevation = None
         self.max_elevation = None
         self.output_full = None
-        self.output_scaled = None
+        self.output_scale = None
+        self.output_tile = None
+
         self.main()
 
     def main(self):
-        self._generate_heightmap_name()
-        self._gdal_info()
+        self._generate_filenames()
         self._find_elevation_range()
-        self._gdal_translate()
-        self._scale_mode()
-        self._crop_mode()
+        self._generate_full()
+        self._generate_scale()
+        self._generate_tile()
 
-    def _generate_heightmap_name(self):
+    def _generate_filenames(self):
         timestamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S_')
         uid = ''.join(random.choice(string.ascii_lowercase) for i in range(4))
         self.output_full = OUTPUT_DIR + timestamp + uid + '_heightmap_full.png'
-        self.output_scaled = OUTPUT_DIR + timestamp + uid + '_heightmap_scaled.png'
-        self.output_cropped = OUTPUT_DIR + timestamp + uid
-
-    def _gdal_info(self):
-        gdal_info_cmd = [GDAL_INFO_BIN, '-stats', self.input_data]
-        try:
-            print('\n>>> Extracting elevation information from input data')
-            self.raster_info = str(subprocess.check_output(gdal_info_cmd))
-        except subprocess.CalledProcessError as exception:
-            print("Failed to retrieve raster information:\n", exception.output)
-            sys.exit(1)
+        self.output_scale = OUTPUT_DIR + timestamp + uid + '_heightmap_scaled.png'
+        self.output_tile = OUTPUT_DIR + timestamp + uid
 
     def _find_elevation_range(self):
-        self.min_elevation = re.findall(r'(?<=STATISTICS_MINIMUM=)\-?\d{1,}',
-                                        self.raster_info)[0]
-        self.max_elevation = re.findall(r'(?<=STATISTICS_MAXIMUM=)\-?\d{1,}',
-                                        self.raster_info)[0]
+        gdal_info_cmd = [GDAL_INFO, '-stats', self.dem]
+        try:
+            print('\n>>> Extracting elevation information from input DEM.')
+            raster_info = str(subprocess.check_output(gdal_info_cmd))
+        except subprocess.CalledProcessError as exception:
+            print("Failed to retrieve elevation information:\n", exception.output)
+            sys.exit(1)
+
+        self.min_elevation = re.findall(r'(?<=STATISTICS_MINIMUM=)\-?\d{1,}', raster_info)[0]
+        self.max_elevation = re.findall(r'(?<=STATISTICS_MAXIMUM=)\-?\d{1,}', raster_info)[0]
+
         print('Minimum elevation: {}m'.format(self.min_elevation))
         print('Maximum elevation: {}m'.format(self.max_elevation))
         print('Elevation range: {}m'.format(int(self.max_elevation) - int(self.min_elevation)))
 
-    def _gdal_translate(self):
-        gdal_translate_cmd = [GDAL_TRANSLATE_BIN, '-of', 'PNG', '-ot', 'UInt16', '-scale',
+    def _generate_full(self):
+        gdal_translate_cmd = [GDAL_TRANSLATE, '-of', 'PNG', '-ot', 'UInt16', '-scale',
                               self.min_elevation, self.max_elevation, '0', '65535',
-                              self.input_data, self.output_full]
-        print('\n>>> Converting input data to full resolution 16-bit PNG')
+                              self.dem, self.output_full]
+        print('\n>>> Converting input DEM to full resolution 16-bit PNG.')
         subprocess.call(gdal_translate_cmd)
 
-    def _scale_mode(self):
-        gdal_translate_cmd = [GDAL_TRANSLATE_BIN, '-outsize', self.resolution,
-                              self.resolution, '-of', 'PNG', '-ot', 'UInt16', '-scale',
+    def _generate_scale(self):
+        gdal_translate_cmd = [GDAL_TRANSLATE, '-outsize', self.res_scale,
+                              self.res_scale, '-of', 'PNG', '-ot', 'UInt16', '-scale',
                               self.min_elevation, self.max_elevation, '0', '65535',
-                              self.input_data, self.output_scaled]
+                              self.dem, self.output_scale]
         print('\n>>> Converting input data to scaled resolution 16-bit PNG')
         subprocess.call(gdal_translate_cmd)
 
-    def _crop_mode(self):
+    def _generate_tile(self):
         img = Image.open(self.output_full)
         width, height = img.size
-        slice_size = int(self.resolution)
+        tile_size = int(self.res_tile)
 
         print('\n>>> Slicing full resolution heightmap into tiles.')
 
-        for y in range(0, height, slice_size):
-            for x in range(0, width, slice_size):
-                mx = min(x + slice_size, width)
-                my = min(y + slice_size, height)
+        for y in range(0, height, tile_size):
+            for x in range(0, width, tile_size):
+                mx = min(x + tile_size, width)
+                my = min(y + tile_size, height)
                 img_slice = img.crop((x, y, mx, my))
-                img_slice.save(self.output_cropped + "_heightmap_cropped_{}-{}.png".format(x, y))
+                img_slice.save(self.output_tile + "_heightmap_tile_{}-{}.png".format(x, y))
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate a 16-bit PNG ' \
-                                                'heightmap from USGS raster data.')
-    parser.add_argument('data', metavar='input-data',
-                        help='File or folder name of the data located in the \'input\' folder which \
-                              you would like to convert. File format must be one of IMG, ArcGrid or \
-                              GeoTiff.')
-    parser.add_argument('-r', metavar='output-resolution', type=str, default='4096',
-                        help='Output resolution of the PNG heightmap. The default is 4096.')
+    parser = argparse.ArgumentParser(description='Generate 16-bit PNG heightmaps from geospatial \
+                                                  DEM files (IMG, GeoTiff and ArcGrid).')
+    parser.add_argument('dem', metavar='dem',
+                        help='File (IMG, GeoTiff) or folder (ArcGrid) name of the data located in \
+                              the \'input\' folder which you would like to convert.')
+    parser.add_argument('-s', metavar='scale', type=str,
+                        help='Generate a scaled heightmap.')
+    parser.add_argument('-t', metavar='tile', type=str,
+                        help='Generate a series of heightmap tiles.')
 
     args = parser.parse_args()
-    resolution = args.r
-    input_data = args.data
+    dem = args.dem
+    scale = args.s
+    tile = args.t
 
-    HeightMap(input_data=input_data, resolution=resolution)
+    HeightMap(dem=dem, scale=scale, tile=tile)
 
     print('\n>>> Completed')
 
