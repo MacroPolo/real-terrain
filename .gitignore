@@ -1,0 +1,7 @@
+*.img
+*.adf
+*.xml
+*.tfw
+*.tif
+*.png
+.vscode/
