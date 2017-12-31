@@ -1,7 +1,10 @@
-*.img
 *.adf
-*.xml
-*.tfw
-*.tif
+*.img
 *.png
-.vscode/
+*.pyproj
+*.sln
+*.tif
+*.tfw
+*.xml
+.vs/
+env/
