@@ -9,9 +9,11 @@ This script uses the compiled GDAL binaries for Windows provided by
 this script on a Windows machine.
 
 ## Installation Instructions
+
 Simply download or clone this repository, no additional installation is required.
 
 ## How to download USGS Elevation Data
+
 There are several ways to download high-quality, free elevation data from the 
 United States Geological Survey (USGS) website.
 
@@ -54,51 +56,97 @@ either IMG or ArgGrid format. If not, please read the previous section.
 
 ### IMG Instructions
 
-1. Extract the ZIP file
-2. Move the .img file into the input/ folder within the real-terrain directory
+1. Extract the ZIP file.
+2. Move the .img file into the `input/` folder within the real-terrain directory.
 
 ### ArcGrid Instructions
 
-1. Extract the ZIP file
+1. Extract the ZIP file.
 2. Within one of the extracted directories there will be a large ADF file.
-Move this entire directory into the input/ folder within the real-terrain directory
+Move this entire directory into the `input/` folder within the real-terrain directory.
 
 ### Usage
-```
-python real-terrain.py --help
-usage: real-terrain.py [-h] [-r output_resolution] input_data
 
-Generate a 16-bit PNG heightmap from USGS data
+```
+$ python real-terrain.py --help
+usage: real-terrain.py [-h] [-s scale] [-t tile] [-r random] dem
+
+Generate 16-bit PNG heightmaps from geospatial DEM files (IMG, GeoTiff and
+ArcGrid).
 
 positional arguments:
-  input_data            Name of the input data (IMG, ArcGrid or GeoTIFF)
+  dem         File (IMG, GeoTiff) or folder (ArcGrid) name of the source data
+              located in 'input\' which you would like to convert.
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -r output_resolution  Resolution of the final output (default 4096x4096)
+  -h, --help  show this help message and exit
+  -s scale    Scale the full resolution heighmap to a fixed resolution.
+  -t tile     Slice the full resolution heighmap into sequential tiles.
+  -r random   Slice the full resolution heighmap into random tiles.
 ```
 
 If you are converting from an IMG or GeoTIFF file, simply specify the name of the 
-file within the /input folder that you want to convert. For example:
+file within the `/input` folder that you want to convert. For example:
+
 ```python
 python real-terrain.py my_img_input.img
 ```
 
 Otherwise, if you are converting from ArcGrid, you need to specify the ArcGrid
 directory. For example:
+
 ```python
 python real-terrain.py my_arcgrid_input
 ```
 
-You can optionally change the default resolution which the heightmap will output to:
+By default, the script will output a full-resolution 16-Bit PNG convereted from your
+input data.
+
+The `scale` option will output an additional heightmap which has been scaled to your 
+resolution of choice (square resolution).
+
+The `tile` option will also slice the original heighmap into sequential tiles of whatever 
+resolution you set.
+
+The `random` option performs the same action as `tile` however the slices are random, rather 
+than sequential.
+
+Example with all options enabled:
+
 ```python
-python real-terrain.py my_img_input.img -r 8192
+$ python real-terrain.py -s 2048 -t 512 -r 4096 input.img
+>>> Extracting elevation information from input DEM.
+Minimum elevation: 650m
+Maximum elevation: 2455m
+Elevation range: 1805m
+
+>>> Converting input DEM to full resolution 16-bit PNG.
+Input file size is 10812, 10812
+0...10...20...30...40...50...60...70...80...90...100 - done.
+
+>>> Converting input data to scaled resolution 16-bit PNG
+Input file size is 10812, 10812
+0...10...20...30...40...50...60...70...80...90...100 - done.
+
+>>> Slicing full resolution heightmap into sequential tiles.
+
+>>> Slicing full resolution heightmap into random tiles.
+(1) Bounding Box:(4476, 1815, 8572, 5911)
+(2) Bounding Box:(1214, 2757, 5310, 6853)
+(3) Bounding Box:(2983, 4320, 7079, 8416)
+(4) Bounding Box:(1867, 316, 5963, 4412)
+(5) Bounding Box:(5003, 2400, 9099, 6496)
+(6) Bounding Box:(6563, 5984, 10659, 10080)
+(7) Bounding Box:(3892, 4681, 7988, 8777)
+(8) Bounding Box:(5684, 168, 9780, 4264)
+(9) Bounding Box:(6469, 436, 10565, 4532)
+(10) Bounding Box:(2341, 3775, 6437, 7871)
+
+>>> Completed
 ```
-The default resolution is 4096 x 4096.
 
-The script will also output the minimum and maximum elevation values (in meters)
-for the terrain which you should take a note of for use within your Game Engine.
+The script will also print out the minimum and maximum elevation values (in meters)
+for the terrain which you you may want to take a note of for use within your game engine.
 
-All converted heightmaps can be found in the output/ directory in the format
-`20170812_181455_heightmap.png`. You can delete everything from input/ and output/
-when you are finished.
+All converted heightmaps can be found in the `output/` directory. You can delete everything 
+from `input/` and `output/` when you are finished.

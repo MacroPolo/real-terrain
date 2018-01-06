@@ -19,16 +19,18 @@ INPUT_DIR = 'input/'
 OUTPUT_DIR = 'output/'
 
 class HeightMap(object):
-    def __init__(self, dem, scale=None, tile=None):
+    def __init__(self, dem, scale=None, tile=None, tile_random=None):
         self.dem = INPUT_DIR + dem
         self.res_scale = scale
         self.res_tile = tile
+        self.res_tile_random = tile_random
 
         self.min_elevation = None
         self.max_elevation = None
         self.output_full = None
         self.output_scale = None
         self.output_tile = None
+        self.output_tile_random = None
 
         self.main()
 
@@ -36,8 +38,12 @@ class HeightMap(object):
         self._generate_filenames()
         self._find_elevation_range()
         self._generate_full()
-        self._generate_scale()
-        self._generate_tile()
+        if self.res_scale:
+            self._generate_scale()
+        if self.res_tile:
+            self._generate_tile()
+        if self.res_tile_random:
+            self._generate_random()
 
     def _generate_filenames(self):
         timestamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S_')
@@ -82,7 +88,7 @@ class HeightMap(object):
         width, height = img.size
         tile_size = int(self.res_tile)
 
-        print('\n>>> Slicing full resolution heightmap into tiles.')
+        print('\n>>> Slicing full resolution heightmap into sequential tiles.')
 
         for y in range(0, height, tile_size):
             for x in range(0, width, tile_size):
@@ -91,23 +97,44 @@ class HeightMap(object):
                 img_slice = img.crop((x, y, mx, my))
                 img_slice.save(self.output_tile + "_heightmap_tile_{}-{}.png".format(x, y))
 
+    def _generate_random(self):
+        img = Image.open(self.output_full)
+        width, height = img.size
+        tile_size = int(self.res_tile_random)
+
+        print('\n>>> Slicing full resolution heightmap into random tiles.')
+        
+        number_of_tiles = 10
+
+        for i in range(number_of_tiles):
+            x0 = random.randint(0, width - tile_size)
+            y0 = random.randint(0, height - tile_size)
+            x1 = x0 + tile_size
+            y1 = y0 + tile_size
+            print('({}) Bounding Box:{}'.format(i + 1, (x0, y0, x1, y1)))
+            img_slice = img.crop((x0, y0, x1, y1))
+            img_slice.save(self.output_tile + "_heightmap_random_{}.png".format(i))
+
 def main():
     parser = argparse.ArgumentParser(description='Generate 16-bit PNG heightmaps from geospatial \
                                                   DEM files (IMG, GeoTiff and ArcGrid).')
     parser.add_argument('dem', metavar='dem',
-                        help='File (IMG, GeoTiff) or folder (ArcGrid) name of the data located in \
-                              the \'input\' folder which you would like to convert.')
+                        help='File (IMG, GeoTiff) or folder (ArcGrid) name of the source data \
+                              located in \'input\\\' which you would like to convert.')
     parser.add_argument('-s', metavar='scale', type=str,
-                        help='Generate a scaled heightmap.')
+                        help='Scale the full resolution heighmap to a fixed resolution.')
     parser.add_argument('-t', metavar='tile', type=str,
-                        help='Generate a series of heightmap tiles.')
+                        help='Slice the full resolution heighmap into sequential tiles.')
+    parser.add_argument('-r', metavar='random', type=str,
+                        help='Slice the full resolution heighmap into random tiles.')
 
     args = parser.parse_args()
     dem = args.dem
     scale = args.s
     tile = args.t
+    tile_random = args.r
 
-    HeightMap(dem=dem, scale=scale, tile=tile)
+    HeightMap(dem=dem, scale=scale, tile=tile, tile_random=tile_random)
 
     print('\n>>> Completed')
 
