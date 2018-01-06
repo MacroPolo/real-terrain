@@ -10,7 +10,13 @@ this script on a Windows machine.
 
 ## Installation Instructions
 
-Simply download or clone this repository, no additional installation is required.
+* Download or clone this repository.
+* Install the [Pillow](https://pillow.readthedocs.io/en/3.0.x/installation.html#basic-installation)
+library to allow image manipulation. Easily achieved with `pip`:
+
+```python
+pip install Pillow
+```
 
 ## How to download USGS Elevation Data
 
