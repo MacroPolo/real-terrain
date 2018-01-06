@@ -94,14 +94,14 @@ optional arguments:
 If you are converting from an IMG or GeoTIFF file, simply specify the name of the 
 file within the `/input` folder that you want to convert. For example:
 
-```python
+```
 python real-terrain.py my_img_input.img
 ```
 
 Otherwise, if you are converting from ArcGrid, you need to specify the ArcGrid
 directory. For example:
 
-```python
+```
 python real-terrain.py my_arcgrid_input
 ```
 
@@ -119,7 +119,7 @@ than sequential.
 
 Example with all options enabled:
 
-```python
+```
 $ python real-terrain.py -s 2048 -t 512 -r 4096 input.img
 >>> Extracting elevation information from input DEM.
 Minimum elevation: 650m
